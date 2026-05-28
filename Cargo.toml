@@ -83,6 +83,7 @@ futures-channel = {version = "0.3", features = ["sink"]}
 
 [features]
 default = ["fs"]
+cloudflare = ["cloud-base", "reqwest", "reqwest/rustls", "aws-lc-rs"]
 
 # Shared cloud/provider implementation dependencies.
 # This intentionally does NOT include reqwest or a bundled crypto provider.

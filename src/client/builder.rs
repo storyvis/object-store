@@ -159,7 +159,7 @@ impl HttpRequestBuilder {
     /// auth tokens by GCP.
     ///
     /// [sensitive]: HeaderValue::set_sensitive
-    #[cfg(any(feature = "gcp-base", feature = "azure-base"))]
+    #[cfg(any(feature = "gcp-base", feature = "azure-base", feature = "cloudflare"))]
     pub(crate) fn sensitive_header<K, V>(mut self, name: K, value: V) -> Self
     where
         K: TryInto<HeaderName>,
@@ -179,7 +179,7 @@ impl HttpRequestBuilder {
         self
     }
 
-    #[cfg(feature = "gcp-base")]
+    #[cfg(any(feature = "gcp-base", feature = "cloudflare"))]
     pub(crate) fn bearer_auth(self, token: &str) -> Self {
         self.sensitive_header(http::header::AUTHORIZATION, format!("Bearer {token}"))
     }
@@ -200,7 +200,8 @@ impl HttpRequestBuilder {
         test,
         feature = "aws-base",
         feature = "gcp-base",
-        feature = "azure-base"
+        feature = "azure-base",
+        feature = "cloudflare"
     ))]
     pub(crate) fn query<T: serde::Serialize + ?Sized>(mut self, query: &T) -> Self {
         let mut error = None;
@@ -229,7 +230,7 @@ impl HttpRequestBuilder {
         self
     }
 
-    #[cfg(any(feature = "gcp-base", feature = "azure-base"))]
+    #[cfg(any(feature = "gcp-base", feature = "azure-base", feature = "cloudflare"))]
     pub(crate) fn form<T: serde::Serialize>(mut self, form: T) -> Self {
         let mut error = None;
         if let Ok(ref mut req) = self.request {
@@ -250,7 +251,7 @@ impl HttpRequestBuilder {
         self
     }
 
-    #[cfg(any(feature = "aws-base", feature = "gcp-base", feature = "azure-base"))]
+    #[cfg(any(feature = "aws-base", feature = "gcp-base", feature = "azure-base", feature = "cloudflare"))]
     pub(crate) fn body(mut self, b: impl Into<HttpRequestBody>) -> Self {
         if let Ok(r) = &mut self.request {
             *r.body_mut() = b.into();
