@@ -125,6 +125,7 @@ fn object_meta_from_r2(obj: &Object) -> ObjectMeta {
 /// Build a PutResult from an R2 Object
 fn put_result_from_r2(obj: &Object) -> PutResult {
     PutResult {
+        extensions: Default::default(),
         e_tag: obj.etag().map(|e| e.to_string()),
         version: obj.version().map(|v| v.to_string()),
     }
@@ -235,10 +236,14 @@ impl ObjectStore for CloudflareR2Workers {
                     });
                 }
                 GetRange::Offset(offset) => {
-                    get_opts = get_opts.range(Range::Offset { offset: *offset as u64 });
+                    get_opts = get_opts.range(Range::Offset {
+                        offset: *offset as u64,
+                    });
                 }
                 GetRange::Suffix(suffix) => {
-                    get_opts = get_opts.range(Range::Suffix { suffix: *suffix as u64 });
+                    get_opts = get_opts.range(Range::Suffix {
+                        suffix: *suffix as u64,
+                    });
                 }
             }
         }
@@ -270,9 +275,8 @@ impl ObjectStore for CloudflareR2Workers {
         let bytes = Bytes::from(body);
 
         Ok(GetResult {
-            payload: GetResultPayload::Stream(
-                stream::once(async { Ok(bytes) }).boxed(),
-            ),
+            extensions: Default::default(),
+            payload: GetResultPayload::Stream(stream::once(async { Ok(bytes) }).boxed()),
             meta,
             range: Default::default(),
             attributes: Default::default(),
@@ -289,10 +293,7 @@ impl ObjectStore for CloudflareR2Workers {
                 let bucket = bucket.clone();
                 async move {
                     let location = location?;
-                    bucket
-                        .delete(location.as_ref())
-                        .await
-                        .map_err(worker_err)?;
+                    bucket.delete(location.as_ref()).await.map_err(worker_err)?;
                     Ok(location)
                 }
             })
@@ -339,10 +340,7 @@ impl ObjectStore for CloudflareR2Workers {
                     None
                 };
 
-                Some((
-                    stream::iter(objects).boxed(),
-                    (bucket, prefix, next_cursor),
-                ))
+                Some((stream::iter(objects).boxed(), (bucket, prefix, next_cursor)))
             },
         )
         .flatten()
@@ -451,6 +449,7 @@ impl ObjectStore for CloudflareR2Workers {
         Ok(ListResult {
             common_prefixes: common_prefixes.into_iter().collect(),
             objects: all_objects,
+            extensions: Default::default(),
         })
     }
 
@@ -465,11 +464,7 @@ impl ObjectStore for CloudflareR2Workers {
             }
             CopyMode::Create => {
                 // Check if destination exists first
-                let head = self
-                    .bucket
-                    .head(to.as_ref())
-                    .await
-                    .map_err(worker_err)?;
+                let head = self.bucket.head(to.as_ref()).await.map_err(worker_err)?;
 
                 if head.is_some() {
                     return Err(crate::Error::AlreadyExists {

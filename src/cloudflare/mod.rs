@@ -99,9 +99,9 @@ use crate::{
 #[cfg(feature = "cloudflare")]
 use async_trait::async_trait;
 #[cfg(feature = "cloudflare")]
-use futures_util::stream::BoxStream;
-#[cfg(feature = "cloudflare")]
 use futures_util::StreamExt;
+#[cfg(feature = "cloudflare")]
+use futures_util::stream::BoxStream;
 #[cfg(feature = "cloudflare")]
 use reqwest::Method;
 #[cfg(feature = "cloudflare")]
@@ -112,9 +112,9 @@ use std::time::Duration;
 use url::Url;
 
 #[cfg(feature = "cloudflare")]
-use client::CloudflareClient;
-#[cfg(feature = "cloudflare")]
 pub use builder::{CloudflareConfigKey, CloudflareR2Builder};
+#[cfg(feature = "cloudflare")]
+use client::CloudflareClient;
 #[cfg(feature = "cloudflare")]
 pub use credential::CloudflareCredential;
 
@@ -130,7 +130,8 @@ const STORE: &str = "CloudflareR2";
 
 /// [`CredentialProvider`] for [`CloudflareR2`]
 #[cfg(feature = "cloudflare")]
-pub type CloudflareCredentialProvider = Arc<dyn CredentialProvider<Credential = CloudflareCredential>>;
+pub type CloudflareCredentialProvider =
+    Arc<dyn CredentialProvider<Credential = CloudflareCredential>>;
 
 /// Interface for [Cloudflare R2](https://developers.cloudflare.com/r2/) using the REST API.
 #[cfg(feature = "cloudflare")]

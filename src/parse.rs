@@ -464,7 +464,6 @@ mod tests {
     #[cfg(all(
         feature = "reqwest",
         feature = "http-base",
-            feature = "cloudflare",
         not(target_arch = "wasm32")
     ))]
     async fn test_url_http() {

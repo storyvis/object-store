@@ -161,7 +161,6 @@ impl FromStr for CloudflareConfigKey {
     }
 }
 
-
 /// Builder for [`CloudflareR2`] using the Cloudflare REST API
 ///
 /// # Example
@@ -215,8 +214,8 @@ impl CloudflareR2Builder {
     pub fn from_env() -> Self {
         let mut builder = Self::new();
 
-        if let Ok(account_id) = std::env::var("CLOUDFLARE_ACCOUNT_ID")
-            .or_else(|_| std::env::var("CF_ACCOUNT_ID"))
+        if let Ok(account_id) =
+            std::env::var("CLOUDFLARE_ACCOUNT_ID").or_else(|_| std::env::var("CF_ACCOUNT_ID"))
         {
             builder.account_id = Some(account_id);
         }
@@ -368,7 +367,12 @@ impl CloudflareR2Builder {
                     }
                 }
             }
-            scheme => return Err(Error::UnknownUrlScheme { scheme: scheme.into() }.into()),
+            scheme => {
+                return Err(Error::UnknownUrlScheme {
+                    scheme: scheme.into(),
+                }
+                .into());
+            }
         }
 
         Ok(())

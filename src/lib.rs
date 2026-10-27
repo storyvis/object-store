@@ -710,12 +710,12 @@
 pub mod aws;
 #[cfg(feature = "azure-base")]
 pub mod azure;
-#[cfg(any(feature = "cloudflare", feature = "cloudflare-workers"))]
-pub mod cloudflare;
 #[cfg(feature = "tokio")]
 pub mod buffered;
 #[cfg(not(target_arch = "wasm32"))]
 pub mod chunked;
+#[cfg(any(feature = "cloudflare", feature = "cloudflare-workers"))]
+pub mod cloudflare;
 pub mod delimited;
 #[cfg(feature = "gcp-base")]
 pub mod gcp;

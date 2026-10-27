@@ -22,20 +22,31 @@ mod cloudflare_signed_url_tests {
             .with_bucket_name("test-bucket")
             .with_api_token("dummy-token")
             .with_access_key_id("88bc40f98a5a693902e77b815b57ec4f")
-            .with_secret_access_key("aac1d4bbcc3a766e926d1ef8794ef8788347462368eb035162f11277d9b8c74f")
+            .with_secret_access_key(
+                "aac1d4bbcc3a766e926d1ef8794ef8788347462368eb035162f11277d9b8c74f",
+            )
             .build()
             .expect("Failed to build CloudflareR2");
 
         let path = Path::from("test-file.txt");
-        let url = r2.signed_url(Method::GET, &path, Duration::from_secs(3600)).await.unwrap();
+        let url = r2
+            .signed_url(Method::GET, &path, Duration::from_secs(3600))
+            .await
+            .unwrap();
 
         println!("Generated presigned URL: {}", url);
 
         // Verify URL structure
-        assert!(url.as_str().contains("a01e84070e939a1184a89996889802fb.r2.cloudflarestorage.com"));
+        assert!(
+            url.as_str()
+                .contains("a01e84070e939a1184a89996889802fb.r2.cloudflarestorage.com")
+        );
         assert!(url.as_str().contains("/test-bucket/test-file.txt"));
         assert!(url.as_str().contains("X-Amz-Algorithm=AWS4-HMAC-SHA256"));
-        assert!(url.as_str().contains("X-Amz-Credential=88bc40f98a5a693902e77b815b57ec4f"));
+        assert!(
+            url.as_str()
+                .contains("X-Amz-Credential=88bc40f98a5a693902e77b815b57ec4f")
+        );
         assert!(url.as_str().contains("X-Amz-Expires=3600"));
         assert!(url.as_str().contains("X-Amz-SignedHeaders=host"));
         assert!(url.as_str().contains("X-Amz-Signature="));
@@ -110,7 +121,11 @@ mod cloudflare_signed_url_tests {
             .expect("Failed to generate signed GET URL");
         println!("Presigned GET URL: {}", get_url);
 
-        let response = client.get(get_url.as_str()).send().await.expect("GET via presigned URL failed");
+        let response = client
+            .get(get_url.as_str())
+            .send()
+            .await
+            .expect("GET via presigned URL failed");
         println!("  GET response status: {}", response.status());
         assert!(
             response.status().is_success(),
@@ -118,7 +133,10 @@ mod cloudflare_signed_url_tests {
             response.status()
         );
 
-        let body = response.bytes().await.expect("Failed to read response body");
+        let body = response
+            .bytes()
+            .await
+            .expect("Failed to read response body");
         assert_eq!(body, payload, "Body content mismatch!");
         println!("  Body matches: {:?}", std::str::from_utf8(&body).unwrap());
 
@@ -127,7 +145,11 @@ mod cloudflare_signed_url_tests {
             .signed_url(Method::DELETE, &path, Duration::from_secs(3600))
             .await
             .expect("Failed to generate signed DELETE URL");
-        let del_response = client.delete(delete_url.as_str()).send().await.expect("DELETE failed");
+        let del_response = client
+            .delete(delete_url.as_str())
+            .send()
+            .await
+            .expect("DELETE failed");
         assert!(
             del_response.status().is_success() || del_response.status().as_u16() == 204,
             "DELETE failed with status: {}",
@@ -242,11 +264,23 @@ mod cloudflare_tests {
         // List with delimiter
         let prefix = Path::from("delim-test");
         let result = store.list_with_delimiter(Some(&prefix)).await.unwrap();
-        println!("Objects: {:?}", result.objects.iter().map(|o| &o.location).collect::<Vec<_>>());
+        println!(
+            "Objects: {:?}",
+            result
+                .objects
+                .iter()
+                .map(|o| &o.location)
+                .collect::<Vec<_>>()
+        );
         println!("Common prefixes: {:?}", result.common_prefixes);
 
         // Should have root.txt as object and a/, b/ as common prefixes
-        assert!(result.objects.iter().any(|o| o.location == Path::from("delim-test/root.txt")));
+        assert!(
+            result
+                .objects
+                .iter()
+                .any(|o| o.location == Path::from("delim-test/root.txt"))
+        );
         assert!(result.common_prefixes.len() >= 2);
 
         // Cleanup
@@ -271,7 +305,10 @@ mod cloudflare_tests {
         println!("Testing multipart upload (expected to fail on REST API)...");
         let result = store.put_multipart_opts(&path, Default::default()).await;
 
-        assert!(result.is_err(), "Multipart should not be supported on R2 REST API");
+        assert!(
+            result.is_err(),
+            "Multipart should not be supported on R2 REST API"
+        );
         println!("  Confirmed: multipart not supported on REST API (as expected)");
     }
 }

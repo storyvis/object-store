@@ -200,8 +200,7 @@ impl HttpRequestBuilder {
         test,
         feature = "aws-base",
         feature = "gcp-base",
-        feature = "azure-base",
-        feature = "cloudflare"
+        feature = "azure-base"
     ))]
     pub(crate) fn query<T: serde::Serialize + ?Sized>(mut self, query: &T) -> Self {
         let mut error = None;
@@ -230,7 +229,7 @@ impl HttpRequestBuilder {
         self
     }
 
-    #[cfg(any(feature = "gcp-base", feature = "azure-base", feature = "cloudflare"))]
+    #[cfg(any(feature = "gcp-base", feature = "azure-base"))]
     pub(crate) fn form<T: serde::Serialize>(mut self, form: T) -> Self {
         let mut error = None;
         if let Ok(ref mut req) = self.request {
@@ -251,7 +250,7 @@ impl HttpRequestBuilder {
         self
     }
 
-    #[cfg(any(feature = "aws-base", feature = "gcp-base", feature = "azure-base", feature = "cloudflare"))]
+    #[cfg(any(feature = "aws-base", feature = "gcp-base", feature = "azure-base"))]
     pub(crate) fn body(mut self, b: impl Into<HttpRequestBody>) -> Self {
         if let Ok(r) = &mut self.request {
             *r.body_mut() = b.into();

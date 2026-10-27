@@ -32,8 +32,8 @@ use crate::list::{PaginatedListOptions, PaginatedListResult};
 use crate::multipart::PartId;
 use crate::path::Path;
 use crate::{
-    Attribute, Attributes, ClientOptions, GetOptions, ListResult, MultipartId, ObjectMeta,
-    PutMode, PutMultipartOptions, PutOptions, PutPayload, PutResult, Result, RetryConfig,
+    Attribute, Attributes, ClientOptions, GetOptions, ListResult, MultipartId, ObjectMeta, PutMode,
+    PutMultipartOptions, PutOptions, PutPayload, PutResult, Result, RetryConfig,
 };
 use async_trait::async_trait;
 use chrono::{DateTime, Utc};
@@ -267,7 +267,11 @@ impl Request<'_> {
             .get(VERSION_HEADER)
             .and_then(|v| v.to_str().ok())
             .map(|s| s.to_string());
-        Ok(PutResult { e_tag, version })
+        Ok(PutResult {
+            e_tag,
+            version,
+            extensions: response.into_parts().0.extensions,
+        })
     }
 }
 
@@ -320,15 +324,13 @@ impl CloudflareClient {
 
         match mode {
             PutMode::Overwrite => request.idempotent(true).do_put().await,
-            PutMode::Create => {
-                match request.header(&IF_NONE_MATCH, "*").do_put().await {
-                    Err(e @ crate::Error::Precondition { .. }) => Err(crate::Error::AlreadyExists {
-                        path: path.to_string(),
-                        source: Box::new(e),
-                    }),
-                    r => r,
-                }
-            }
+            PutMode::Create => match request.header(&IF_NONE_MATCH, "*").do_put().await {
+                Err(e @ crate::Error::Precondition { .. }) => Err(crate::Error::AlreadyExists {
+                    path: path.to_string(),
+                    source: Box::new(e),
+                }),
+                r => r,
+            },
             PutMode::Update(v) => {
                 let etag = v.e_tag.ok_or_else(|| crate::Error::Generic {
                     store: STORE,
@@ -353,11 +355,7 @@ impl CloudflareClient {
         let url = self.config.object_url(to);
         let credential = self.config.credentials.get_credential().await?;
 
-        let source_path = format!(
-            "{}/{}",
-            self.config.bucket_name,
-            from
-        );
+        let source_path = format!("{}/{}", self.config.bucket_name, from);
 
         self.client
             .request(Method::PUT, url)
@@ -439,9 +437,7 @@ impl CloudflareClient {
             .map(|s| s.to_string())
             .unwrap_or_default();
 
-        Ok(PartId {
-            content_id: etag,
-        })
+        Ok(PartId { content_id: etag })
     }
 
     /// Complete a multipart upload
@@ -451,11 +447,7 @@ impl CloudflareClient {
         upload_id: &MultipartId,
         parts: Vec<PartId>,
     ) -> Result<PutResult> {
-        let url = format!(
-            "{}?uploadId={}",
-            self.config.object_url(path),
-            upload_id
-        );
+        let url = format!("{}?uploadId={}", self.config.object_url(path), upload_id);
         let credential = self.config.credentials.get_credential().await?;
 
         let body = CompleteMultipartUpload {
@@ -492,20 +484,16 @@ impl CloudflareClient {
             .get("etag")
             .and_then(|v| v.to_str().ok())
             .map(|s| s.to_string());
-        Ok(PutResult { e_tag, version: None })
+        Ok(PutResult {
+            e_tag,
+            version: None,
+            extensions: response.into_parts().0.extensions,
+        })
     }
 
     /// Abort a multipart upload
-    pub(crate) async fn abort_multipart(
-        &self,
-        path: &Path,
-        upload_id: &MultipartId,
-    ) -> Result<()> {
-        let url = format!(
-            "{}?uploadId={}",
-            self.config.object_url(path),
-            upload_id
-        );
+    pub(crate) async fn abort_multipart(&self, path: &Path, upload_id: &MultipartId) -> Result<()> {
+        let url = format!("{}?uploadId={}", self.config.object_url(path), upload_id);
         let credential = self.config.credentials.get_credential().await?;
 
         self.client
@@ -532,25 +520,29 @@ impl CloudflareClient {
     ) -> Result<Url> {
         let credential = self.config.credentials.get_credential().await?;
 
-        let access_key_id = credential.access_key_id.as_deref().ok_or_else(|| {
-            crate::Error::Generic {
-                store: STORE,
-                source: "access_key_id is required for presigned URL generation. \
+        let access_key_id =
+            credential
+                .access_key_id
+                .as_deref()
+                .ok_or_else(|| crate::Error::Generic {
+                    store: STORE,
+                    source: "access_key_id is required for presigned URL generation. \
                          Configure it via with_access_key_id() on the builder."
-                    .to_string()
-                    .into(),
-            }
-        })?;
+                        .to_string()
+                        .into(),
+                })?;
 
-        let secret_access_key = credential.secret_access_key.as_deref().ok_or_else(|| {
-            crate::Error::Generic {
-                store: STORE,
-                source: "secret_access_key is required for presigned URL generation. \
+        let secret_access_key =
+            credential
+                .secret_access_key
+                .as_deref()
+                .ok_or_else(|| crate::Error::Generic {
+                    store: STORE,
+                    source: "secret_access_key is required for presigned URL generation. \
                          Configure it via with_secret_access_key() on the builder."
-                    .to_string()
-                    .into(),
-            }
-        })?;
+                        .to_string()
+                        .into(),
+                })?;
 
         // Build the S3-compatible URL for R2
         let s3_url = format!(
@@ -570,7 +562,7 @@ impl CloudflareClient {
         };
 
         let authorizer = AwsAuthorizer::new(&aws_credential, "s3", "auto");
-        authorizer.sign(method, &mut url, expires_in);
+        authorizer.sign_with(method, &mut url, &[], &http::HeaderMap::new(), expires_in)?;
 
         Ok(url)
     }
@@ -653,8 +645,8 @@ impl ListClient for Arc<CloudflareClient> {
             .await
             .map_err(|source| Error::ListRequest { source })?;
 
-        let body = response
-            .into_body()
+        let (parts, body) = response.into_parts();
+        let body = body
             .json::<R2ListResponse>()
             .await
             .map_err(|source| Error::ListResponseBody { source })?;
@@ -691,6 +683,7 @@ impl ListClient for Arc<CloudflareClient> {
             result: ListResult {
                 common_prefixes,
                 objects,
+                extensions: parts.extensions,
             },
             page_token,
         })
